@@ -1,0 +1,35 @@
+name: Build NoBlowUpPlayerCar ASIs
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
+
+      - name: Compile NoBlowUpPlayerCar (SA), III and VC
+        shell: pwsh
+        run: |
+          foreach ($name in @("NoBlowUpPlayerCar", "NoBlowUpPlayerCarIII", "NoBlowUpPlayerCarVC")) {
+            $src = Get-ChildItem -Recurse -Filter "$name.cpp" | Select-Object -First 1
+            if (-not $src) { throw "$name.cpp not found" }
+            Push-Location $src.DirectoryName
+            cl /nologo /LD /O2 /MT /EHsc /D_CRT_SECURE_NO_WARNINGS "$name.cpp" "/Fe:$name.asi" /link user32.lib kernel32.lib
+            if ($LASTEXITCODE -ne 0) { throw "Build failed: $name" }
+            Pop-Location
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NoBlowUpPlayerCar
+          path: |
+            **/NoBlowUpPlayerCar.asi
+            **/NoBlowUpPlayerCarIII.asi
+            **/NoBlowUpPlayerCarVC.asi
